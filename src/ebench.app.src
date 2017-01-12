@@ -1,0 +1,12 @@
+{application, ebench,
+ [
+  {description, "Erlang Simple Function Benchmark"},
+  {vsn, "1.0.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  plists
+                 ]},
+  {env, []}
+ ]}.
