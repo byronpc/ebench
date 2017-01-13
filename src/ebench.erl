@@ -10,17 +10,18 @@ start(Fun, Processes, Count) ->
   process_flag(trap_exit, true),
   ExpectedResult = Fun(),
   Self = self(),
+  F = fun() ->
+    SubResult = lists:foldl(fun(_Y, {S, F}) ->
+      case Fun() of
+        ExpectedResult -> {S + 1, F};
+        _ -> {S, F + 1}
+      end
+    end, {0, 0}, lists:seq(1, Count)),
+    Self ! SubResult
+  end,
   {Time, {Success, Failures}} = timer:tc(fun() ->
     lists:foreach(fun(_X) ->
-      spawn(fun() ->
-        SubResult = lists:foldl(fun(_Y, {S, F}) ->
-          case Fun() of
-            ExpectedResult -> {S + 1, F};
-            _ -> {S, F + 1}
-          end
-        end, {0, 0}, lists:seq(1, Count)),
-        Self ! SubResult
-      end)
+      spawn_link(F)
     end, lists:seq(1, Processes)),
     wait_responses({0, 0}, Processes)
   end),
