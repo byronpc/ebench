@@ -21,7 +21,7 @@ start(Fun, Processes, Count) ->
   end,
   {Time, {Success, Failures}} = timer:tc(fun() ->
     lists:foreach(fun(_X) ->
-      spawn(F)
+      spawn_monitor(F)
     end, lists:seq(1, Processes)),
     wait_responses({0, 0}, Processes)
   end),
@@ -33,8 +33,11 @@ wait_responses({Success, Failure}, 0) ->
 
 wait_responses({Success, Failure}, Count) ->
   receive
-    {'EXIT', _, _} ->
-      wait_responses({Success, Failure}, Count -1);
+    {'DOWN', _, _, _, normal} ->
+      wait_responses({Success, Failure}, Count);
     {S1, F1} ->
-      wait_responses({Success + S1, Failure + F1}, Count -1)
+      wait_responses({Success + S1, Failure + F1}, Count -1);
+    Unexpected ->
+      io:format("Unexpected ~p~n", [Unexpected]),
+      wait_responses({Success, Failure}, Count -1)
   end.
