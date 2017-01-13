@@ -12,7 +12,7 @@ start(Fun, Processes, Count) ->
   Self = self(),
   F = fun() ->
     SubResult = lists:foldl(fun(_Y, {S, F}) ->
-      case Fun() of
+      case catch Fun() of
         ExpectedResult -> {S + 1, F};
         _ -> {S, F + 1}
       end
