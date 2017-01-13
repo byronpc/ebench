@@ -21,7 +21,7 @@ start(Fun, Processes, Count) ->
   end,
   {Time, {Success, Failures}} = timer:tc(fun() ->
     lists:foreach(fun(_X) ->
-      spawn_link(F)
+      spawn(F)
     end, lists:seq(1, Processes)),
     wait_responses({0, 0}, Processes)
   end),
