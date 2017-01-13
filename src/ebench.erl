@@ -7,19 +7,33 @@ start(Module, Function, Args, Processes, Count) ->
   start(Fun, Processes, Count).
 
 start(Fun, Processes, Count) ->
+  process_flag(trap_exit, true),
   ExpectedResult = Fun(),
-  {Time, Result} = timer:tc(fun() ->
-    plists:map(fun(_X) ->
-      lists:foldl(fun(_Y, {S, F}) ->
-        case Fun() of
-          ExpectedResult -> {S + 1, F};
-          _ -> {S, F + 1}
-        end
-      end, {0, 0}, lists:seq(1, Count))
-    end, lists:seq(1, Processes))
+  Self = self(),
+  {Time, {Success, Failures}} = timer:tc(fun() ->
+    lists:foreach(fun(_X) ->
+      spawn(fun() ->
+        SubResult = lists:foldl(fun(_Y, {S, F}) ->
+          case Fun() of
+            ExpectedResult -> {S + 1, F};
+            _ -> {S, F + 1}
+          end
+        end, {0, 0}, lists:seq(1, Count)),
+        Self ! SubResult
+      end)
+    end, lists:seq(1, Processes)),
+    wait_responses({0, 0}, Processes)
   end),
-  {Success, Failures} = lists:foldl(fun({S1, F1}, {S, F}) ->
-    {S + S1, F + F1}
-  end, {0, 0}, Result),
   io:format("~nBenchmark Complete~nTime Completed: ~pms~nSuccess: ~p~nFailure: ~p~nRate: ~p queries per second~n~n", [Time/1000, Success, Failures, Success/(Time/1000000)]),
   {Time, Success, Failures}.
+
+wait_responses({Success, Failure}, 0) ->
+  {Success, Failure};
+
+wait_responses({Success, Failure}, Count) ->
+  receive
+    {'EXIT', _, _} ->
+      wait_responses({Success, Failure}, Count -1);
+    {S1, F1} ->
+      wait_responses({Success + S1, Failure + F1}, Count -1)
+  end.
